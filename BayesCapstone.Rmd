@@ -1,0 +1,225 @@
+---
+title: "BayesCapstone"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(rjags)
+library(ggplot2)
+```
+
+
+#=======================DATA_CLEANING
+```{r}
+weatherdf <- read.csv("weatherAUS.csv")
+weatherdf <- weatherdf%>%select(c(Date, Location, MinTemp, MaxTemp, RainToday, RainTomorrow))
+
+#  2107 rows of missing data
+dim(weatherdf %>% filter(is.na(MinTemp) | is.na(MaxTemp) | is.na(RainToday) | is.na(RainTomorrow)))
+
+
+# split Date to year-month-day, filter out 2107 rows because of missing data
+library(tidyr)
+library(lubridate)
+weatherdf <- weatherdf %>% mutate(year=year(Date), month=month(Date), day=day(Date)) %>% drop_na(MinTemp, MaxTemp, RainToday, RainTomorrow)
+
+Queensland = c("Brisbane", "Cairns", "GoldCoast", "Townsville" )
+New_South_Wales = c("Albury", "BadgerysCreek", "Cobar" , "Moree", "Newcastle", "NorahHead", "Penrith", "Sydney", "SydneyAirport", "WaggaWagga", "Williamtown", "Wollongong", "Canberra", "Tuggeranong", "MountGinini", "CoffsHarbour")
+Victoria = c("Richmond", "Ballarat", "Bendigo", "Sale", "MelbourneAirport", "Melbourne", "Mildura", "Nhil", "Portland", "Watsonia", "Dartmoor")
+Tasmania = c("Launceston", "Hobart")
+South_Australia = c("Woomera", "Adelaide", "MountGambier", "Nuriootpa" )
+Western_Australia = c("Walpole", "PearceRAAF", "PerthAirport", "Perth", "SalmonGums", "Albany", "Witchcliffe")
+Northern_Australia = c("Uluru", "Katherine", "Darwin", "AliceSprings")
+"NorfolkIsland"
+
+
+weatherdf <- weatherdf %>% mutate(state=(ifelse(Location %in% Queensland, "Queensland", ifelse(Location %in% New_South_Wales, "New_South_Wales", ifelse(Location %in% Victoria, "Victoria", ifelse(Location %in% Tasmania, "Tasmania", ifelse(Location %in% South_Australia, "South_Australia", ifelse(Location %in% Western_Australia, "Western_Australia", ifelse(Location %in% Northern_Australia, "Northern_Australia", ifelse(Location=="NorfolkIsland", "NorfolkIsland", NA))))))))))
+
+
+weatherdf <- weatherdf %>% mutate(RainTomorrow=(ifelse(RainTomorrow=="Yes", 1,0))) %>% mutate(TempDiff= (MaxTemp-MinTemp))
+
+
+
+# split data into train and test, used when we have the model
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(weatherdf))
+## set the seed to make your partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(weatherdf)), size = smp_size)
+train <- weatherdf[train_ind, ]
+test <- weatherdf[-train_ind, ]
+dim(train)
+dim(test)
+
+```
+
+
+
+```{r}
+# four plots: 
+#Model 1: RainTmr~1
+ggplot(weatherdf, aes(x=factor(RainTomorrow))) + geom_bar(alpha=0.5)
+
+#Model 2: RainTmr~TemDiff 
+ggplot(weatherdf,aes(weatherdf$TempDiff, fill = factor(RainTomorrow))) +
+  geom_density(alpha = 0.8) 
+
+#Model 3: RainTmr~ State+ TemDiff 
+ggplot(weatherdf, aes(x= weatherdf$TempDiff, fill=factor(RainTomorrow))) + geom_density(alpha = 0.5)+facet_wrap(~state)
+
+#To get a sense of TempDiff in each state: TempDiff~state
+ggplot(weatherdf, aes(x= weatherdf$TempDiff, fill=state)) + geom_density(alpha = 0.5)
+```
+
+
+
+
+#=================================MODELS
+Y: rain tomorrow or not (in [0,1])
+X: tempreture difference
+$\theta$: overall tomorrow raining rate
+i: different states
+j: whether rain today(in [0,1])
+
+**Model 1** 
+Whether it rains tomorrow depends on the overall raining rate
+$$
+\begin{split}  
+Y_{i} | \theta, b_0& \sim  Bern(\theta) \\ 
+log(\frac{\theta}{1-\theta})  & = b_0 \\
+b_0 & \sim N(0.3, \frac{1}{2500})
+\end{split}
+$$
+
+
+**Model 2**
+Whether it rains tomorrow depends on the overall raining rate, which changes in different tempreture difference
+$$
+\begin{split}  
+Y_{i} | \theta, b_0,b_1 & \sim  Bern(\theta) \\ 
+log(\frac{\theta}{1-\theta})  & = b_0+b_1*X_{i} \\
+b_0,b_1 & \sim N(0.3, \frac{1}{2500})
+\end{split}
+$$
+
+
+**Model3**
+Whether it rains tomorrow depends on the raining rate in specific state, each of which has a different trend with tempreture difference. The individual states’s intercept and slope are nornally distributed around global intercept and slope. 
+
+$$
+\begin{split}  
+Y_{ij} | \theta, b_{0},b_{1},\beta_0,\beta_1, \tau_0, \tau_1 & \sim  Bern(\theta_i) \\ 
+log(\frac{\theta_i}{1-\theta_i})  & = b_{0i}+b_{1i}*X_{ij} \\
+b_{0i}|\beta_0, \tau_0 & \sim N(\beta_0,\tau_0^{-1}) \\
+b_{1i}|\beta_1, \tau_1 & \sim N(\beta_1,\tau_1^{-1}) \\
+\beta_0, \beta_1 &\sim N(0, \frac{1}{10000}) \\
+\tau_0, \tau_1 &\sim Gamma(7, 10000)
+\end{split}
+$$
+
+```{r}
+runsample <- floor(0.05 * nrow(weatherdf))
+set.seed(123)
+run_ind <- sample(seq_len(nrow(weatherdf)), size = runsample)
+run <- weatherdf[run_ind,]
+```
+
+```{r}
+# DEFINE RAIN MODEL 1
+rain_model_1 <- "model{  
+    # Data
+    for(i in 1:length(y)) {
+        y[i] ~ dbern(theta)
+    }
+    logit(theta) <- b0
+
+    # Prior
+    b0   ~ dnorm(m0, t0)
+}"
+
+
+# COMPILE
+rain_jags_1 <- jags.model(textConnection(rain_model_1), 
+    data = list(y = run$RainTomorrow, m0=0.3, t0=1/2500),
+    inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
+
+rain_sim_1 <- coda.samples(rain_jags_1,
+    variable.names = c("b0"),
+    n.iter = 10000)
+
+rain_chains_1 <- data.frame(iteration = 1:10000, rain_sim_1[[1]])
+plot(rain_sim_1)
+summary(rain_sim_1)
+```
+
+
+```{r}
+# DEFINE
+rain_model_2 <- "model{  
+    # Data
+    for(i in 1:length(y)) {
+        y[i] ~ dbern(theta[i])
+        logit(theta[i]) <- b0 + b1 * x[i]
+}   
+        
+
+    # Priors
+    b0   ~ dnorm(m0, t0)
+    b1   ~ dnorm(m1, t1)
+}"
+
+# COMPILE
+rain_jags_2 <- jags.model(textConnection(rain_model_2), 
+    data = list(y = run$RainTomorrow, x = run$TempDiff, m0 = 0.3, m1 = 0.3, t0 = 1/2500, t1 = 1/2500),
+    inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
+
+rain_sim_2 <- coda.samples(rain_jags_2,
+    variable.names = c("b0", "b1"),
+    n.iter = 10000)
+
+rain_chains_2 <- data.frame(rain_sim_2[[1]])
+plot(rain_sim_2)
+summary(rain_sim_2)
+```
+
+
+```{r}
+# DEFINE
+rain_model_3 <- "model{  
+    # Data
+    for(i in 1:length(y)) {
+        y[i] ~ dbern(theta[i])
+        logit(theta[i]) <- b0[subject[i]] + b1[subject[i]] * x[i]
+    }
+
+    # Data: subjects
+    for(i in 1:n_subjects) {
+        b0[i] ~ dnorm(beta0, tau0)
+        b1[i] ~ dnorm(beta1, tau1)
+    }
+
+    # Priors
+    beta0 ~ dnorm(0, 1/10000)
+    beta1 ~ dnorm(0, 1/10000)
+    tau0 ~ dgamma(7, 10000)
+    tau1 ~ dgamma(7, 10000)
+}"
+
+# COMPILE
+rain_jags_3 <- jags.model(textConnection(rain_model_3), 
+    data = list(y = run$RainTomorrow, x = run$TempDiff, subject = factor(run$state), n_subjects = 8),
+    inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
+
+rain_sim_3 <- coda.samples(rain_jags_3,
+    variable.names = c("beta0", "beta1", "tau0", "tau1", "b0", "b1"),
+    n.iter = 10000)
+
+rain_chains_3 <- data.frame(rain_sim_3[[1]])
+```
+
+```{r}
+plot(rain_sim_3)
+summary(rain_sim_3)
+```
+
