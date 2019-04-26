@@ -1,5 +1,5 @@
-# AustraliaRainingPredictor
-Using Bayesian models predicting whether it will rain tomorrow in Australia
+# Australia Raining Predictor
+#####Using Bayesian models predicting whether it will rain tomorrow in Australia
 
 The development of human civilization has been highly depending on weather and climate. As early as the primitive society, precipitation played an irreplaceable role in agriculture and migration: it not only helped our ancestors to find out the best timing for sowing, but also determined where the next destination of the nomadic civilizations is. Rainfall, as one of the major sources of freshwater, largely decided the survival rate of our ancestors. Today, people still care very much about weather and climate even though sowing seeds and nomadic life are away from our daily life. Numerous psychological studies have shown that pleasant weather is associated with better mood and memory. Other researchers suggest that sunny weather even boosts stock market returns. Moreover, for practical reasons, people need to know how to dress for the weather and whether they should bring an umbrella to work. As a result, correctly predicting the rainfalls is crucial in planning our schedule and improving life quality. Our research aims to create a prediction model for precipitation. When given sufficient information, our model is expected to output an accurate prediction on whether Australia is going to rain on the next day.
 
