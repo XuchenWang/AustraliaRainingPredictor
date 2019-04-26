@@ -11,14 +11,24 @@ Our project aims to investigate and predict whether it will rain tomorrow by tra
 
 **Model 1**
 
+![Density plot of Rain_Tomorrow variable](Data_Figure_1.png)
+
 We started with the simplest model, which counts the number of days that rain tomorrow in model 1. This diagram gives the general sense that most of the days in our dataset don’t rain on the next day. The number of days that rain tomorrow is around 30000, and the number of days that don’t rain tomorrow is around 110000. There are approximately 3.5 times days that don't rain tomorrow than the number days that rain tomorrow.
 
 **Model 2**
+
+![Plot of Rain_Tomorrow and Tempreture_Difference](Data_Figure_2.png)
+
 Then we incorporate the first covariate, the temperature difference, into model 2. This plot illustrates that if the temperature difference is below 8 degrees Celsius, it’s very likely to rain tomorrow. If the temperature difference is above 8 degrees Celsius, the probability of raining tomorrow would be low and it’s unlikely to rain. Since the area under both curves don’t have a lot of overlaps, our observations and conclusions above are relatively clear and convincing. 
 
 
 **Model 3**
+
+![Plot of Location and Tempreture_Difference](Data_Figure_3.png)
+
 Then, we extend model 2 by adding the state variable into model 3. This plot gives an overview of the distribution of daily temperature differences in each state in Australia. We group all the cities into 8 states: New South Wales, Norfolk Island, Northern Australia, Queensland, South Australia,Tasmania, Victoria, Western Australia. From the plot, we observe that most of the states have similar distributions, where their temperature differences center around 10 degrees Celsius, with a relatively large spread/variance. Norfolk Island, Queensland, and Tasmania have rather different patterns. Norfolk Island’s mean temperature difference is 5 degrees Celsius and has relatively stable temperature during a day. Queensland’s mean temperature difference is 8 degrees Celsius with relatively small spread/variance. Tasmania’s mean temperature difference is 10 degrees Celsius with relatively small spread/variance, compare with the other common states. 
+
+![Plot of Rain_Tomorrow, Location and Tempreture_Difference](Data_Figure_4.png)
 
 Lastly, we graph the distribution of raining tomorrow and that of not raining tomorrow for each state/region, with respect to the temperature difference. The most obvious observations that we have is that, if New South Wales, Northern, Western, Southern Australia, Vistoria, or Tasmania has a temperature difference above 10 degrees Celsius, it's unlikely to rain tomorrow in that state;  if the  temperature difference is below 10 degrees Celsius, it's likely to rain tomorrow in that state. Queensland’s plot suggests a similar threshold at 8 degree Celsius. Norfolk Island is the most vague one, because the pink and blue area under the curves highly overlap with each other, making it hard to distinguish the threshold. Part of the reason is that the temperature difference on Norfolk Island is very small.  
 
