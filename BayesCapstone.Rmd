@@ -52,11 +52,20 @@ test <- weatherdf[-train_ind, ]
 dim(train)
 dim(test)
 
+
+# run data is used when test whether the code works or not. For shorten the rjags running time.
+# only contains 5% of original data
+runsample <- floor(0.05 * nrow(weatherdf))
+set.seed(123)
+run_ind <- sample(seq_len(nrow(weatherdf)), size = runsample)
+run <- weatherdf[run_ind,]
+
 ```
 
 
 
 ```{r}
+options(digits=6)
 # four plots: 
 #Model 1: RainTmr~1
 ggplot(weatherdf, aes(x=factor(RainTomorrow))) + geom_bar(alpha=0.5)
@@ -118,14 +127,9 @@ b_{1i}|\beta_1, \tau_1 & \sim N(\beta_1,\tau_1^{-1}) \\
 \end{split}
 $$
 
-```{r}
-runsample <- floor(0.05 * nrow(weatherdf))
-set.seed(123)
-run_ind <- sample(seq_len(nrow(weatherdf)), size = runsample)
-run <- weatherdf[run_ind,]
-```
 
-```{r}
+
+```{r cache=TRUE}
 # DEFINE RAIN MODEL 1
 rain_model_1 <- "model{  
     # Data
@@ -141,7 +145,7 @@ rain_model_1 <- "model{
 
 # COMPILE
 rain_jags_1 <- jags.model(textConnection(rain_model_1), 
-    data = list(y = run$RainTomorrow, m0=0.3, t0=1/2500),
+    data = list(y = train$RainTomorrow, m0=0.3, t0=1/2500),
     inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
 
 rain_sim_1 <- coda.samples(rain_jags_1,
@@ -154,8 +158,43 @@ summary(rain_sim_1)
 ```
 
 
+
 ```{r}
-# DEFINE
+# TEST-MODEL 1
+rain_chains_1 <- rain_chains_1 %>% 
+        mutate(theta_pred = exp(b0) / (1+exp(b0)))
+
+set.seed(454) # where should I put set.seed? If put it into the function, the probability for each row will be the same
+my_predict <- function(x){
+    predict_chains <- rain_chains_1 %>% 
+        mutate(y_prediction = rbinom(nrow(rain_chains_1), size=1, prob=theta_pred))
+    
+    mean(predict_chains$y_prediction)
+}
+
+
+test <- test %>% 
+    mutate(prob_pred1 = Vectorize(my_predict)(x = row_number()))
+
+tab <- table(test$RainTomorrow, (test$prob_pred1 >= 0.2))
+tab
+prop.table(tab, margin = 1)
+sum(diag(tab)) / sum(tab)
+
+   
+#     FALSE
+#   0 27178
+#   1  7844
+#    
+#     FALSE
+#   0     1
+#   1     1
+# [1] 0.776026
+```
+
+
+```{r cache=TRUE}
+# DEFINE RAIN MODEL 2
 rain_model_2 <- "model{  
     # Data
     for(i in 1:length(y)) {
@@ -171,7 +210,7 @@ rain_model_2 <- "model{
 
 # COMPILE
 rain_jags_2 <- jags.model(textConnection(rain_model_2), 
-    data = list(y = run$RainTomorrow, x = run$TempDiff, m0 = 0.3, m1 = 0.3, t0 = 1/2500, t1 = 1/2500),
+    data = list(y = train$RainTomorrow, x = train$TempDiff, m0 = 0.3, m1 = 0.3, t0 = 1/2500, t1 = 1/2500),
     inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
 
 rain_sim_2 <- coda.samples(rain_jags_2,
@@ -183,9 +222,44 @@ plot(rain_sim_2)
 summary(rain_sim_2)
 ```
 
-
 ```{r}
-# DEFINE
+# TEST-MODEL 2
+my_predict <- function(x){ 
+  # input is TempDiff 
+  set.seed(454)
+  predict_chains <- rain_chains_2 %>% 
+      mutate(theta_pred = exp(b0+b1*x) / (1+exp(b0+b1*x))) %>%  
+      mutate(y_prediction = rbinom(nrow(rain_chains_2), size=1, prob=theta_pred))
+    
+    mean(predict_chains$y_prediction)
+}
+
+test <- test %>% 
+    mutate(prob_pred2 = Vectorize(my_predict)(x = test$TempDiff))
+
+tab <- table(test$RainTomorrow, (test$prob_pred2 >= 0.2))
+tab
+prop.table(tab, margin = 1)
+sum(diag(tab)) / sum(tab)
+
+#     FALSE  TRUE
+#   0 26663   515
+#   1  6768  1076
+#    
+#         FALSE      TRUE
+#   0 0.9810508 0.0189492
+#   1 0.8628251 0.1371749
+# [1] 0.792045
+```
+
+
+
+
+
+
+
+```{r cache=TRUE}
+# DEFINE RAIN MODEL 3
 rain_model_3 <- "model{  
     # Data
     for(i in 1:length(y)) {
@@ -208,7 +282,7 @@ rain_model_3 <- "model{
 
 # COMPILE
 rain_jags_3 <- jags.model(textConnection(rain_model_3), 
-    data = list(y = run$RainTomorrow, x = run$TempDiff, subject = factor(run$state), n_subjects = 8),
+    data = list(y = train$RainTomorrow, x = train$TempDiff, subject = factor(train$state), n_subjects = 8),
     inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
 
 rain_sim_3 <- coda.samples(rain_jags_3,
@@ -216,10 +290,255 @@ rain_sim_3 <- coda.samples(rain_jags_3,
     n.iter = 10000)
 
 rain_chains_3 <- data.frame(rain_sim_3[[1]])
-```
 
-```{r}
 plot(rain_sim_3)
 summary(rain_sim_3)
 ```
+
+
+
+
+```{r}
+# TEST-MODEL 3
+my_predict <- function(state, x){ 
+  # input is TempDiff and state
+  b0 <- rain_chains_3[,state]
+  b1 <- rain_chains_3[,state+8]
+  
+  set.seed(454)
+  predict_chains <- rain_chains_3 %>% 
+      mutate(theta_pred = exp(b0+b1*x) / (1+exp(b0+b1*x))) %>%  
+      mutate(y_prediction = rbinom(nrow(rain_chains_3), size=1, prob=theta_pred))
+    
+    mean(predict_chains$y_prediction)
+}
+
+
+# what does b0.1. and b1.1. correspond to? In alphabetic order? 
+stateSet <- sort(unique(test$state))
+state_index <- match(test$state,stateSet)
+
+
+test <- test %>% 
+    mutate(prob_pred3 = Vectorize(my_predict)(state=state_index, x = test$TempDiff))
+
+tab <- table(test$RainTomorrow, (test$prob_pred3 >= 0.2))
+tab
+prop.table(tab, margin = 1)
+sum(diag(tab)) / sum(tab)
+
+#     FALSE  TRUE
+#   0 26575   603
+#   1  6587  1257
+#    
+#         FALSE      TRUE
+#   0 0.9778129 0.0221871
+#   1 0.8397501 0.1602499
+# [1] 0.7947
+
+```
+
+
+
+```{r cache=TRUE}
+# DEFINE RAIN MODEL 4--location(city) instead of state
+rain_model_4 <- "model{  
+    # Data
+    for(i in 1:length(y)) {
+        y[i] ~ dbern(theta[i])
+        logit(theta[i]) <- b0[subject[i]] + b1[subject[i]] * x[i]
+    }
+
+    # Data: subjects
+    for(i in 1:n_subjects) {
+        b0[i] ~ dnorm(beta0, tau0)
+        b1[i] ~ dnorm(beta1, tau1)
+    }
+
+    # Priors
+    beta0 ~ dnorm(0, 1/10000)
+    beta1 ~ dnorm(0, 1/10000)
+    tau0 ~ dgamma(7, 10000)
+    tau1 ~ dgamma(7, 10000)
+}"
+
+# COMPILE
+rain_jags_4 <- jags.model(textConnection(rain_model_4), 
+    data = list(y = train$RainTomorrow, x = train$TempDiff, subject = factor(train$Location), n_subjects = 49),
+    inits=list(.RNG.name = "base::Wichmann-Hill", .RNG.seed = 454))
+
+rain_sim_4 <- coda.samples(rain_jags_4,
+    variable.names = c("beta0", "beta1", "tau0", "tau1", "b0", "b1"),
+    n.iter = 10000)
+
+rain_chains_4 <- data.frame(rain_sim_4[[1]])
+
+plot(rain_sim_4)
+summary(rain_sim_4)
+```
+
+
+```{r}
+# TEST-MODEL 4
+my_predict <- function(location, x){ 
+  # input is TempDiff and state
+  b0 <- rain_chains_4[,location]
+  b1 <- rain_chains_4[,location+49]
+  
+  set.seed(454)
+  predict_chains <- rain_chains_4 %>% 
+      mutate(theta_pred = exp(b0+b1*x) / (1+exp(b0+b1*x))) %>%  
+      mutate(y_prediction = rbinom(nrow(rain_chains_4), size=1, prob=theta_pred))
+    
+    mean(predict_chains$y_prediction)
+}
+
+
+# In alphabetic order? 
+locationSet <- sort(unique(test$Location))
+location_index <- match(test$Location,locationSet)
+
+
+test <- test %>% 
+    mutate(prob_pred4 = Vectorize(my_predict)(location=location_index, x = test$TempDiff))
+
+tab <- table(test$RainTomorrow, (test$prob_pred4 >= 0.2))
+tab
+prop.table(tab, margin = 1)
+sum(diag(tab)) / sum(tab)
+
+# export dataset
+write.csv(test, "test.csv")
+write.csv(rain_chains_4, "rain_chains_4.csv")
+```
+
+
+
+
+#=============================================SHINNY APP for the fourth model
+
+```{r echo=FALSE}
+library(dplyr)
+new_predict <- function(location, TempDiff){ 
+  locationSet <- sort(unique(test$Location))
+  location <- match(location,locationSet)
+  
+  # input is TempDiff and state
+  b0 <- rain_chains_4[,location]
+  b1 <- rain_chains_4[,location+49]
+  
+  set.seed(454)
+  predict_chains <- rain_chains_4 %>% 
+      mutate(theta_pred = exp(b0+b1*TempDiff) / (1+exp(b0+b1*TempDiff))) %>%  
+      mutate(y_prediction = rbinom(nrow(rain_chains_4), size=1, prob=theta_pred))
+    
+    return(mean(predict_chains$y_prediction))
+}
+
+# specific_accurary <- function(location,tempDiff, cut){
+#   sub <- test %>% filter(Location==location) %>% filter(TempDiff==tempDiff)
+#   tab <- table(sub$RainTomorrow, (sub$prob_pred4 >= cut))
+#   confMatrix <- as.data.frame.matrix(prop.table(tab, margin = 1))
+#   confMatrix <- cbind(model = c("not rain","rain"), confMatrix)
+#   return(confMatrix)
+# }
+
+model_accurary <- function(cut){
+  tab <- table(test$RainTomorrow, (test$prob_pred4 >= cut))
+  confMatrix <- prop.table(tab, margin = 1)
+  confMatrix <- as.data.frame.matrix(confMatrix)
+  confMatrix <- cbind(model = c("not rain","rain"), confMatrix)
+  acc <- sum(diag(tab)) / sum(tab)
+  return(list(Matrix=confMatrix, Acc=acc))
+}
+
+rain_predict <- function(location, TempDiff, cut){
+  prob <- new_predict(location, TempDiff)
+  result=NULL
+  if (prob>=cut){result="rain"}
+  else {result="not rain"}
+  return(result)
+}
+
+
+library(shiny)
+city = sort(unique(train$Location))
+server <- function(input, output) {
+  output$modelTable <- renderTable({
+      model_accurary(input$cut)$Matrix
+    })
+  # output$specificTable <- renderTable({
+  #       specific_accurary(input$city, input$TempDiff, input$cut)
+  #   })
+  output$acc <- renderText(
+    model_accurary(input$cut)$Acc
+  )
+  output$prediction <- renderText(
+    new_predict(input$city, input$TempDiff)
+  )
+  output$rain <- renderText(
+    rain_predict(input$city, input$TempDiff, input$cut)
+  )
+  
+}
+
+
+#build the user interface
+ui <- fluidPage(
+  titlePanel("Australia Weather Predictor"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("cut", "Threshold of Probability", min = 0, max = 1, value = 0.2, step=0.05),
+      selectInput("city", "Location", city),
+      sliderInput("TempDiff", "Temperature Difference of Present Day", min = 0, max = 50, value = 8)
+    ),
+    mainPanel(
+      h3("***************CHOOSE THRESHOLD***************"),
+      h4("The accurary of the model in this specific threshold"), 
+      tableOutput("modelTable") ,
+      h4("The overall accuracy of the model is: "), 
+      textOutput("acc"),
+      # h4("The accurary of the model in this specific location and temperature difference"), 
+      # tableOutput("specificTable") ,
+      br(), br(),
+      h3("*****************MAKE PREDICTION*****************"),
+      h4("The probability to rain tomorrow is: "), 
+      textOutput("prediction"),
+      h4("Whether it will rain tomorrow: "), 
+      textOutput("rain")
+    )
+  )
+)
+
+
+#check out the shiny app!
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+# Model Comparison Code
+library(ggplot2)
+results<-data.frame("Model"=c(1,1,1,2,2,2,3,3,3,4,4,4), "Values"=c(0, 1, 0.23, 0.59, 0.77, 0.63, 0.60, 0.77, 0.64, 0.61, 0.77, 0.65), "Type"=c("Specificity", "Sensitivity", "Overall.Accuracy","Specificity", "Sensitivity", "Overall.Accuracy","Specificity", "Sensitivity", "Overall.Accuracy","Specificity", "Sensitivity", "Overall.Accuracy"))
+results
+
+p <-ggplot(results, aes(Model, Values))
+p +geom_bar(stat = "identity", aes(fill = Type), position = "dodge")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
