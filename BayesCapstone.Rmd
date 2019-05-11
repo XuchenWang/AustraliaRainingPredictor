@@ -50,6 +50,8 @@ train_ind <- sample(seq_len(nrow(weatherdf)), size = smp_size)
 train <- weatherdf[train_ind, ]
 test <- weatherdf[-train_ind, ]
 dim(train)
+dim(train %>% filter(RainTomorrow==1))
+dim(train %>% filter(RainTomorrow==0))
 dim(test)
 
 
@@ -79,6 +81,7 @@ ggplot(weatherdf, aes(x= weatherdf$TempDiff, fill=factor(RainTomorrow))) + geom_
 
 #To get a sense of TempDiff in each state: TempDiff~state
 ggplot(weatherdf, aes(x= weatherdf$TempDiff, fill=state)) + geom_density(alpha = 0.5)
+
 ```
 
 
@@ -408,8 +411,8 @@ prop.table(tab, margin = 1)
 sum(diag(tab)) / sum(tab)
 
 # export dataset
-write.csv(test, "test.csv")
-write.csv(rain_chains_4, "rain_chains_4.csv")
+# write.csv(test, "test.csv")
+# write.csv(rain_chains_4, "rain_chains_4.csv")
 ```
 
 
