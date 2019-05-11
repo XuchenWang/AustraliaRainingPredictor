@@ -59,7 +59,7 @@ Lastly, we graph the distribution of raining tomorrow and that of not raining to
 
 ![](Model_Figure_3.png)
 
-![Plot of Location and Tempreture_Difference](Data_Figure_3.png)
+![Plot of Location and Tempreture_Difference](Data_Figure_5.png)
 
 This model is an improved version of Model 3 and replaces the state variable with the city variable, so that we can predict the weather for each city more precisely and make the model more practical for people to use in daily life. The above 6 plots present the distributions of raining tomorrow(blue) and not raining tomorrow(pink) for the top six cities with most data and presumably the most popular ones in Australia, with respect to today's temperature differences. The threshold for Brisbane, Darwin, Hobart, and Sydney is around 8 degrees Celsius, meaning that if today's temperature difference is below 8 degrees Celsius, tomorrow is likely to rain; Vice versa. The threshold of Perth is around 10 degrees Celsius, and that for Canberra is 12 degrees Celsius. Their thresholds are different, because these cities are located in different geographical areas. 
 
@@ -91,6 +91,7 @@ To evaluate the models, we will compare the models and pick the most suitable an
 | Sensitivity     | 1        | 0.77     | 0.77     | 0.77     |
 | Overall Accuracy| 0.23     | 0.63     | 0.64     | 0.65     |
 
+![](Model_Eval.png)
 
 By comparing the the overall accuracies, we eliminate Model 1 at first, because it has the lowest overall accuracy and specificity. Model 2, Model 3, and Model 4 are pretty much the same, in terms of specificities, sensitivities, and overall accuracies. For a better user experiences and practicality, we choose Model 4 as the optimal one, because it incorporates each city into the model and provides more precise and customized weather forecast.
 
