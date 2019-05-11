@@ -1,6 +1,4 @@
-# Aussie Weather Forecast: 
-
-## Is it going to rain tomorrow?
+# Aussie Weather Forecast: Is it going to rain tomorrow?
 
 *Using Bayesian models predicting whether it will rain tomorrow in Australia*
 
