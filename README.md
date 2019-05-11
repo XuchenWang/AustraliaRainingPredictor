@@ -41,7 +41,7 @@ Then we incorporate the first covariate, the temperature difference, into model 
 
 
 **Model 3: RainTmr~ State+ TemDiff **
-*whether it rains tomorrow depends on the raining rate in a specific state, each of which has a different trend with temperature difference.*
+*Assumption: Whether it rains tomorrow depends on the today's temperature difference and the state.*
 
 ![](Model_Figure_3.png)
 
@@ -55,7 +55,7 @@ Lastly, we graph the distribution of raining tomorrow and that of not raining to
 
 
 **Model 4: RainTmr~ City + TemDiff **
-*whether it rains tomorrow depends on the raining rate in a specific city, each of which has a different trend with temperature difference.*
+*Assumption: Whether it rains tomorrow depends on the today's temperature difference and the city.*
 
 ![](Model_Figure_3.png)
 
@@ -64,8 +64,37 @@ Lastly, we graph the distribution of raining tomorrow and that of not raining to
 This model is an improved version of Model 3 and replaces the state variable with the city variable, so that we can predict the weather for each city more precisely and make the model more practical for people to use in daily life. The above 6 plots present the distributions of raining tomorrow(blue) and not raining tomorrow(pink) for the top six cities with most data and presumably the most popular ones in Australia, with respect to today's temperature differences. The threshold for Brisbane, Darwin, Hobart, and Sydney is around 8 degrees Celsius, meaning that if today's temperature difference is below 8 degrees Celsius, tomorrow is likely to rain; Vice versa. The threshold of Perth is around 10 degrees Celsius, and that for Canberra is 12 degrees Celsius. Their thresholds are different, because these cities are located in different geographical areas. 
 
 
+## Result
+**Model 1:** RainTomorrow~1, whether it rains tomorrow depends on the overall raining rate
+
+The probability of raining tomorrow centers around eˆ(-1.2784)/[eˆ(-1.2784)+1] = 0.22, given the mean of b0, log odds of raining rate, is -1.27, with a very small standard deviation of 0.0207. Its trace plot is relatively stable, indicating the certainty of this model. 
+
+**Model 2:** RainTomorrow~ TempDiff, whether it will rain tomorrow depends on the overall raining rate, which changes according to the temperature difference.
+
+In this model, we have two priors: the intercept of the trend between global raining rate and each temperature difference, the slope of the trend between global raining rate and each temperature difference. The intercept centers around 0.7969 and the slope centers around -0.2151. 
+
+**Model 3:** RainTomorrow~ State + TempDiff, whether it rains tomorrow depends on the raining rate in a specific state, each of which has a different trend with temperature difference. The individual states intercept and slope are normally distributed around global intercept and slope. 
+
+This model shows that the log odds of the probability of raining tomorrow is centered around 1.18 and would decreases by 0.274 for every one unit of increases in temperature difference. To study the probability of raining tomorrow for each state, we then account for the global slope and global intercept, along with the individuality of each state by state-level intercept and state-level slope. Its trace plot is stable and density plot is normally distributed. 
+
+**Model 4:** RainTomorrow~ City + TempDiff, whether it rains tomorrow depends on the raining rate in a specific city, each of which has a different trend with temperature difference in Celsius. The individual city intercept and slope are normally distributed around global intercept and slope.
+	Model 4 is similar to Model 3, but it uses city instead of state. We hope to see a more accurate result by substituting the state location predictor with a more specific and narrowed-down city predictor. Model 4’s trace plot is relatively stable, indicating the model is appropriate.
 
 
+## Model Evaluation
+
+To evaluate the models, we will compare the models and pick the most suitable and practical one based on their complexities and accuracies. Model 1 is the simplest, Model 2 is more complex, Model 3 is the most complex, and Model 4 is equally complex as Model 3. Thus, Model 1 wins in terms of model complexity. To compare their accuracies, we construct the confusion matrix for each of the models and calculate the sensitivity, specificity, and overall accuracy for each model. Sensitivity gives the probability of correctly recognizing rainy days as rainy, specificity gives the probability of correctly recognizing not rainy days as not rainy, and overall accuracy illustrates the probability for the model to make correct predictions. By setting the threshold of the probability at 0.2, meaning that it will rain tomorrow if the probability of raining tomorrow is larger than 0.2, we get the confusion matrix for each model. 
+
+|                 | Model 1  | Model 2  | Model 3  | Model 4  | 
+| --------------- |:--------:|:--------:|:--------:|---------:|
+| Specificity     | 0        | 0.59     | 0.60     | 0.61     |
+| Sensitivity     | 1        | 0.77     | 0.77     | 0.77     |
+| Overall Accuracy| 0.23     | 0.63     | 0.64     | 0.65     |
+
+
+By comparing the the overall accuracies, we eliminate Model 1 at first, because it has the lowest overall accuracy and specificity. Model 2, Model 3, and Model 4 are pretty much the same, in terms of specificities, sensitivities, and overall accuracies. For a better user experiences and practicality, we choose Model 4 as the optimal one, because it incorporates each city into the model and provides more precise and customized weather forecast.
+
+Actually, the threshold can be adjusted by users, according to their preferences. The higher the threshold, the higher the probability of correctly predicting a not rainy day; The lower the threshold, the higher the probability of correctly predicting a rainy day. Therefore, if the user inclines to stay dry or worry about being caught in a shower, it would be reasonable and helpful to adjust the threshold downward. On the other hand, if the individual prefers to see more sunny days and is not afraid of getting wet, he or she could set the threshold at a relatively high level around 0.5. Our shiny app provide such conveniences for users to adjust the cut-off threshold, the specific city, and the temperature difference, so that this weather forecast application could best serve each individual. The shiny app outputs a confusion matrix that shows the accuracy of our prediction and a probability of raining on the next day. That is to say, users are able to decide which threshold of rain prediction according to their own preferences of sensitivity and specificity.
 
 
 
