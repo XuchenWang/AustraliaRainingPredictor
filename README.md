@@ -97,6 +97,23 @@ By comparing the the overall accuracies, we eliminate Model 1 at first, because 
 Actually, the threshold can be adjusted by users, according to their preferences. The higher the threshold, the higher the probability of correctly predicting a not rainy day; The lower the threshold, the higher the probability of correctly predicting a rainy day. Therefore, if the user inclines to stay dry or worry about being caught in a shower, it would be reasonable and helpful to adjust the threshold downward. On the other hand, if the individual prefers to see more sunny days and is not afraid of getting wet, he or she could set the threshold at a relatively high level around 0.5. Our shiny app provide such conveniences for users to adjust the cut-off threshold, the specific city, and the temperature difference, so that this weather forecast application could best serve each individual. The shiny app outputs a confusion matrix that shows the accuracy of our prediction and a probability of raining on the next day. That is to say, users are able to decide which threshold of rain prediction according to their own preferences of sensitivity and specificity.
 
 
+## Conclusion and Limitations
+
+From the four models we established, we identify our fourth model, which uses City and TempDiff as predictors to be the most suitable and practical model for weather forecasting in Australia. Our confusion matrix highlights the importance of choosing an appropriate cut-off threshold value that determines our final classification result. With our shiny app, users can customize their own threshold. However, we acknowledge that our analyses have a few flaws and can be improved through further research. First of all, since none of our four models has an overall accuracy over 65%, the predictors we choose are not sufficient to produce a highly accurate weather forecast. We need more knowledge on the influential factors that decides precipitation and take those factors into our consideration. In the future, we can include variables such as Month, Humidity, and Windspeed to produce a better result. We can also consider the interactive effects of our variables. Moreover, we need to research on the cut-off threshold that a professional weather forecast uses to balance the overall accuracy with sensitivity and specificity. With a better threshold, we will be able to produce a more reliable app that actually outputs a good prediction.
+
+## References
+
+- Goetzmann, W., Kim, D., Kumar, A., & Wang, Q. (2015). Weather-Induced Mood, Institutional Investors, and Stock Returns. The Review of Financial Studies, 28(1), 73-111. Retrieved from http://www.jstor.org/stable/24466848
+
+- Keller, M., Fredrickson, B., Ybarra, O., Côté, S., Johnson, K., Mikels, J., . . . Wager, T. (2005). A Warm Heart and a Clear Head: The Contingent Effects of Weather on Mood and Cognition. Psychological Science, 16(9), 724-731. Retrieved from http://www.jstor.org/stable/40064300
+
+- Young, J. Rain in Australia- Predict Rain Tomorrow in Australia. (2010). Kaggle Dataset. https://www.kaggle.com/jsphyg/weather-dataset-rattle-package
+
+- Wickham, H. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+- Plummer, M., Stukalov, A., & Denwood, M. rjags: Bayesian Graphical Models using MCMC. 2018
+
+- Wickham, H., François, R., Henry, L., &Müller, K. dplyr: A Grammar of Data Manipulation. 2018. R package version  0.7.6. https://CRAN.R-project.org/package=dplyr
 
 
 
